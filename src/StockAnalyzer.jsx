@@ -10,23 +10,12 @@ export default function StockAnalyzer() {
   const [stockInfo, setStockInfo] = useState(null);
   const [error, setError] = useState('');
   const [recentSymbols, setRecentSymbols] = useState(['AAPL', 'TSLA', 'MSFT']);
-  const [timeRange, setTimeRange] = useState('1mo');
 
   const API_BASE = process.env.NODE_ENV === 'production' 
     ? '' 
     : 'http://localhost:3001';
 
-  const timeRanges = [
-    { label: '1M', value: '1mo' },
-    { label: '3M', value: '3mo' },
-    { label: '6M', value: '6mo' },
-    { label: 'YTD', value: 'ytd' },
-    { label: '1Y', value: '1y' },
-    { label: '2Y', value: '2y' },
-    { label: '5Y', value: '5y' }
-  ];
-
-  const analyzeStock = async (stockSymbol = null, range = timeRange) => {
+  const analyzeStock = async (stockSymbol = null) => {
     const targetSymbol = stockSymbol || symbol;
     
     if (!targetSymbol.trim()) {
@@ -36,7 +25,7 @@ export default function StockAnalyzer() {
 
     setLoading(true);
     setError('');
-    if (!stockSymbol) setAnalysis(null); // Only clear analysis if searching new stock
+    if (!stockSymbol) setAnalysis(null);
     setChartData(null);
     setStockInfo(null);
     setActiveSymbol(targetSymbol.toUpperCase());
@@ -47,7 +36,7 @@ export default function StockAnalyzer() {
 
     try {
       const chartResponse = await fetch(
-        `${API_BASE}/api/chart/${targetSymbol.toUpperCase()}?range=${range}`
+        `${API_BASE}/api/chart/${targetSymbol.toUpperCase()}?range=1mo`
       );
       
       if (chartResponse.ok) {
@@ -79,7 +68,6 @@ export default function StockAnalyzer() {
         }
       }
 
-      // Only fetch analysis if it's a new stock search
       if (!stockSymbol || !analysis) {
         const response = await fetch(`${API_BASE}/api/analyze`, {
           method: "POST",
@@ -124,13 +112,6 @@ export default function StockAnalyzer() {
     }
   };
 
-  const changeTimeRange = (range) => {
-    setTimeRange(range);
-    if (activeSymbol) {
-      analyzeStock(activeSymbol, range);
-    }
-  };
-
   const LineChart = ({ data }) => {
     if (!data || data.length === 0) return null;
 
@@ -145,17 +126,6 @@ export default function StockAnalyzer() {
     const priceChange = lastPrice - firstPrice;
     const percentChange = ((priceChange / firstPrice) * 100).toFixed(2);
 
-    // Determine date format based on time range
-    const getDateFormat = (date, index, total) => {
-      if (timeRange === '1mo') {
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      } else if (timeRange === '3mo' || timeRange === '6mo') {
-        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      } else {
-        return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-      }
-    };
-
     return (
       <div style={{ width: '100%', display: 'flex', flexDirection: 'column' }}>
         <div style={{ marginBottom: '16px' }}>
@@ -168,7 +138,7 @@ export default function StockAnalyzer() {
         </div>
 
         <div style={{ width: '100%', overflowX: 'auto' }}>
-          <svg width="100%" height="300" viewBox="0 0 1000 300" preserveAspectRatio="xMidYMid meet">
+          <svg width="100%" height="280" viewBox="0 0 1000 280" preserveAspectRatio="xMidYMid meet">
             <defs>
               <linearGradient id="chartGradient" x1="0%" y1="0%" x2="0%" y2="100%">
                 <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.4" />
@@ -214,19 +184,6 @@ export default function StockAnalyzer() {
               stroke="#3b82f6"
               strokeWidth="3"
             />
-
-            {data.filter((_, i) => {
-              const interval = timeRange === '5y' ? 12 : timeRange === '2y' ? 8 : 6;
-              return i % Math.ceil(data.length / interval) === 0 || i === data.length - 1;
-            }).map((d, idx) => {
-              const i = data.indexOf(d);
-              const x = (i / (data.length - 1)) * 900;
-              return (
-                <text key={idx} x={x} y="270" fontSize="11" fill="#6b7280" textAnchor="middle">
-                  {getDateFormat(d.date, i, data.length)}
-                </text>
-              );
-            })}
           </svg>
         </div>
       </div>
@@ -247,11 +204,6 @@ export default function StockAnalyzer() {
       position: 'sticky',
       top: 0,
       zIndex: 10
-    },
-    headerContent: {
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '12px'
     },
     headerTop: {
       display: 'flex',
@@ -274,7 +226,8 @@ export default function StockAnalyzer() {
       display: 'flex',
       gap: '6px',
       overflowX: 'auto',
-      paddingBottom: '4px'
+      paddingBottom: '4px',
+      marginTop: '12px'
     },
     button: (isActive) => ({
       padding: '6px 12px',
@@ -285,18 +238,6 @@ export default function StockAnalyzer() {
       cursor: loading ? 'not-allowed' : 'pointer',
       backgroundColor: isActive ? '#2563eb' : 'transparent',
       color: isActive ? 'white' : '#9ca3af',
-      transition: 'all 0.2s',
-      whiteSpace: 'nowrap'
-    }),
-    timeButton: (isActive) => ({
-      padding: '4px 10px',
-      borderRadius: '6px',
-      fontSize: '12px',
-      fontWeight: '500',
-      border: 'none',
-      cursor: loading ? 'not-allowed' : 'pointer',
-      backgroundColor: isActive ? '#1f2937' : 'transparent',
-      color: isActive ? 'white' : '#6b7280',
       transition: 'all 0.2s',
       whiteSpace: 'nowrap'
     }),
@@ -329,27 +270,10 @@ export default function StockAnalyzer() {
       marginBottom: '16px',
       border: '1px solid #1f2937'
     },
-    chartHeader: {
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: '16px',
-      flexWrap: 'wrap',
-      gap: '12px'
-    },
     stockTitle: {
       fontSize: '20px',
       fontWeight: 'bold',
-      margin: 0
-    },
-    timeRangeButtons: {
-      display: 'flex',
-      gap: '4px',
-      backgroundColor: '#1a1f2e',
-      padding: '4px',
-      borderRadius: '8px',
-      border: '1px solid #374151',
-      overflowX: 'auto'
+      marginBottom: '16px'
     },
     infoSection: {
       display: 'flex',
@@ -407,7 +331,6 @@ export default function StockAnalyzer() {
 
   return (
     <div style={styles.container}>
-      {/* Header */}
       <header style={styles.header}>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           <div style={styles.headerTop}>
@@ -467,28 +390,10 @@ export default function StockAnalyzer() {
         </div>
       )}
 
-      {/* Main Content */}
       {(chartData || analysis) ? (
         <div style={{ ...styles.mainContent, maxWidth: '1200px', margin: '0 auto' }}>
-          {/* Chart Section */}
           <div style={styles.chartSection}>
-            <div style={styles.chartHeader}>
-              <h2 style={styles.stockTitle}>{activeSymbol}</h2>
-              
-              {/* Time Range Buttons */}
-              <div style={styles.timeRangeButtons}>
-                {timeRanges.map((range) => (
-                  <button
-                    key={range.value}
-                    onClick={() => changeTimeRange(range.value)}
-                    disabled={loading}
-                    style={styles.timeButton(timeRange === range.value)}
-                  >
-                    {range.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <h2 style={styles.stockTitle}>{activeSymbol}</h2>
             
             {chartData ? (
               <LineChart data={chartData} />
@@ -499,9 +404,7 @@ export default function StockAnalyzer() {
             )}
           </div>
 
-          {/* Info Sections */}
           <div style={styles.infoSection}>
-            {/* Overview */}
             <div style={styles.card}>
               <div style={styles.sectionTitle}>
                 <Activity size={18} color="#3b82f6" />
@@ -522,7 +425,6 @@ export default function StockAnalyzer() {
               </div>
             </div>
 
-            {/* Key Metrics */}
             <div style={styles.card}>
               <div style={styles.sectionTitle}>
                 <BarChart2 size={18} color="#3b82f6" />
@@ -552,7 +454,6 @@ export default function StockAnalyzer() {
               )}
             </div>
 
-            {/* Trading Signals */}
             <div style={styles.card}>
               <div style={styles.sectionTitle}>
                 <TrendingUp size={18} color="#3b82f6" />
