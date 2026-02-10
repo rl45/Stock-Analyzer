@@ -36,7 +36,7 @@ export default function StockAnalyzer() {
 
     try {
       const chartResponse = await fetch(
-        `${API_BASE}/api/chart/${targetSymbol.toUpperCase()}?range=1mo`
+        `${API_BASE}/api/stock-chart?symbol=${targetSymbol.toUpperCase()}`
       );
       
       if (chartResponse.ok) {
