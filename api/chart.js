@@ -9,6 +9,7 @@ export default async function handler(req, res) {
   }
   
   const { symbol } = req.query;
+  const range = req.query.range || '1mo';
   
   if (!symbol) {
     return res.status(400).json({ error: 'Symbol required' });
@@ -16,12 +17,12 @@ export default async function handler(req, res) {
   
   try {
     const response = await fetch(
-      `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?range=1mo&interval=1d`
+      `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?range=${range}&interval=1d`
     );
     const data = await response.json();
     res.json(data);
   } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({ error: 'Failed to fetch chart' });
+    console.error('Chart error:', error);
+    res.status(500).json({ error: 'Failed to fetch chart', details: error.message });
   }
 }
