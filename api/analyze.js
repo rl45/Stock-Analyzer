@@ -1,3 +1,5 @@
+import { kv } from '@vercel/kv';
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Credentials', true);
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -14,8 +16,20 @@ export default async function handler(req, res) {
   }
 
   const { symbol } = req.body;
+  const cacheKey = `analysis:${symbol}`;
   
   try {
+    // Check cache first (valid for 30 minutes)
+    const cached = await kv.get(cacheKey);
+    
+    if (cached) {
+      console.log('✅ Cache HIT for', symbol);
+      return res.json(cached);
+    }
+    
+    console.log('❌ Cache MISS for', symbol, '- calling Claude API');
+    
+    // Not in cache - call Claude API
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -37,13 +51,17 @@ export default async function handler(req, res) {
     const data = await response.json();
     
     if (data.error) {
-      console.error('API Error:', data.error);
+      console.error('❌ API Error:', data.error);
       return res.status(429).json({ error: data.error.message });
     }
     
+    // Save to cache for 30 minutes (1800 seconds)
+    await kv.set(cacheKey, data, { ex: 1800 });
+    console.log('💾 Saved to cache:', symbol);
+    
     res.json(data);
   } catch (error) {
-    console.error('Error:', error);
+    console.error('❌ Error:', error);
     res.status(500).json({ error: 'Failed to analyze', details: error.message });
   }
 }
