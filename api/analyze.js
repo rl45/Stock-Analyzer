@@ -14,34 +14,81 @@ export default async function handler(req, res) {
   }
 
   const { symbol } = req.body;
+  const API_KEY = process.env.ALPHA_VANTAGE_KEY;
   
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01"
-      },
-      body: JSON.stringify({
-        model: "claude-3-5-haiku-20241022",
-        max_tokens: 300,
-        messages: [{
-          role: "user",
-          content: `Analyze ${symbol} stock. Return ONLY valid JSON (no markdown, no backticks): {"symbol":"${symbol}","currentPrice":0,"recommendation":"BUY|SELL|HOLD","confidence":0-100,"reasoning":"brief","keyMetrics":{"peRatio":"value","marketCap":"value","52weekChange":"value"},"sentiment":"POSITIVE|NEGATIVE|NEUTRAL","risks":["risk1","risk2"],"opportunities":["opp1","opp2"]}`
-        }],
-        tools: [{ type: "web_search_20250305", name: "web_search" }]
-      })
-    });
-
+    // Get company overview from Alpha Vantage
+    const response = await fetch(
+      `https://www.alphavantage.co/query?function=OVERVIEW&symbol=${symbol}&apikey=${API_KEY}`
+    );
     const data = await response.json();
     
-    if (data.error) {
-      console.error('API Error:', data.error);
-      return res.status(429).json({ error: data.error.message });
+    // Check if we got valid data
+    if (data.Note) {
+      return res.status(429).json({ 
+        error: 'API limit reached. Please try again in a minute.' 
+      });
     }
     
-    res.json(data);
+    if (!data.Symbol) {
+      return res.status(404).json({ 
+        error: `Stock ${symbol} not found` 
+      });
+    }
+    
+    // Calculate recommendation based on P/E ratio
+    const peRatio = parseFloat(data.PERatio) || 0;
+    const profitMargin = parseFloat(data.ProfitMargin) || 0;
+    
+    let recommendation = 'HOLD';
+    let confidence = 70;
+    let reasoning = 'Neutral market conditions';
+    let sentiment = 'NEUTRAL';
+    
+    // Simple analysis logic
+    if (peRatio > 0 && peRatio < 15 && profitMargin > 0.1) {
+      recommendation = 'BUY';
+      confidence = 85;
+      reasoning = 'Low P/E ratio and strong profit margins indicate good value';
+      sentiment = 'POSITIVE';
+    } else if (peRatio > 40 || profitMargin < 0) {
+      recommendation = 'SELL';
+      confidence = 75;
+      reasoning = 'High valuation or negative margins suggest caution';
+      sentiment = 'NEGATIVE';
+    }
+    
+    // Build response in Claude format
+    const analysis = {
+      symbol: data.Symbol,
+      currentPrice: parseFloat(data['50DayMovingAverage']) || 0,
+      recommendation: recommendation,
+      confidence: confidence,
+      reasoning: reasoning,
+      keyMetrics: {
+        peRatio: data.PERatio || 'N/A',
+        marketCap: data.MarketCapitalization || 'N/A',
+        '52weekChange': `${data['52WeekHigh']} - ${data['52WeekLow']}`
+      },
+      sentiment: sentiment,
+      risks: [
+        data.PERatio > 30 ? 'High P/E ratio suggests overvaluation' : 'Market volatility',
+        'Sector-specific challenges: ' + (data.Sector || 'Unknown')
+      ],
+      opportunities: [
+        'Industry: ' + (data.Industry || 'Unknown'),
+        data.DividendYield ? `Dividend yield: ${data.DividendYield}` : 'Growth potential'
+      ]
+    };
+    
+    // Return in same format as Claude API
+    res.json({
+      content: [{
+        type: "text",
+        text: JSON.stringify(analysis)
+      }]
+    });
+    
   } catch (error) {
     console.error('Error:', error);
     res.status(500).json({ error: 'Failed to analyze', details: error.message });
