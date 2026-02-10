@@ -24,12 +24,11 @@ export default async function handler(req, res) {
         "anthropic-version": "2023-06-01"
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
-        max_tokens: 400,
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 300,
         messages: [{
           role: "user",
-          content: `${symbol} stock. JSON only:
-{"symbol":"${symbol}","currentPrice":0,"recommendation":"BUY|SELL|HOLD","confidence":0-100,"reasoning":"brief","keyMetrics":{"peRatio":0,"marketCap":"","52weekChange":""},"sentiment":"POSITIVE|NEGATIVE|NEUTRAL","risks":[""],"opportunities":[""]}`
+          content: `${symbol}: return JSON {"symbol":"${symbol}","currentPrice":0,"recommendation":"BUY|SELL|HOLD","confidence":0-100,"reasoning":"brief","keyMetrics":{"peRatio":0,"marketCap":"","52weekChange":""},"sentiment":"POSITIVE|NEGATIVE|NEUTRAL","risks":[""],"opportunities":[""]}`
         }],
         tools: [{ type: "web_search_20250305", name: "web_search" }]
       })
@@ -38,6 +37,7 @@ export default async function handler(req, res) {
     const data = await response.json();
     
     if (data.error) {
+      console.error('API Error:', data.error);
       return res.status(429).json({ error: data.error.message });
     }
     
