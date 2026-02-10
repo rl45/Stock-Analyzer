@@ -24,11 +24,11 @@ export default async function handler(req, res) {
         "anthropic-version": "2023-06-01"
       },
       body: JSON.stringify({
-        model: "claude-haiku-4-5-20251001",
+        model: "claude-3-5-haiku-20241022",
         max_tokens: 300,
         messages: [{
           role: "user",
-          content: `${symbol}: JSON only {"symbol":"${symbol}","currentPrice":0,"recommendation":"BUY|SELL|HOLD","confidence":0-100,"reasoning":"brief","keyMetrics":{"peRatio":0,"marketCap":"","52weekChange":""},"sentiment":"POSITIVE|NEGATIVE|NEUTRAL","risks":[""],"opportunities":[""]}`
+          content: `${symbol}: JSON {"symbol":"${symbol}","currentPrice":0,"recommendation":"BUY|SELL|HOLD","confidence":0-100,"reasoning":"brief","keyMetrics":{"peRatio":0,"marketCap":"","52weekChange":""},"sentiment":"POSITIVE|NEGATIVE|NEUTRAL","risks":[""],"opportunities":[""]}`
         }],
         tools: [{ type: "web_search_20250305", name: "web_search" }]
       })
@@ -44,6 +44,6 @@ export default async function handler(req, res) {
     res.json(data);
   } catch (error) {
     console.error('Error:', error);
-    res.status(500).json({ error: 'Failed to analyze' });
+    res.status(500).json({ error: 'Failed to analyze', details: error.message });
   }
 }
