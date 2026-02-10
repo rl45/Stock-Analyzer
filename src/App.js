@@ -1,12 +1,7 @@
-import './App.css';
 import StockAnalyzer from './StockAnalyzer.jsx';
 
 function App() {
-  return (
-    <div className="App">
-      <StockAnalyzer />
-    </div>
-  );
+  return <StockAnalyzer />;
 }
 
 export default App;
